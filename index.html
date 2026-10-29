@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo SSH y SSL · UFPS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #14213D;
+    --paper: #FBFCFE;
+    --panel: #EEF2F8;
+    --muted: #5B6B82;
+    --line: #D5DDEA;
+    --safe: #0F7C7A;
+    --danger: #C0392B;
+    --term-bg: #14213D;
+    --term-ink: #E6ECF5;
+    --term-dim: #8FA3C0;
+    --term-ok: #5FD3C9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --ink: #E6ECF5;
+      --paper: #0E1729;
+      --panel: #17233B;
+      --muted: #9AABC4;
+      --line: #26344F;
+      --safe: #3FC1B6;
+      --danger: #F0796B;
+      --term-bg: #070D19;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 56px 24px 80px; }
+  header p { color: var(--muted); }
+  h1 { font-size: 40px; line-height: 1.15; font-weight: 700; margin-bottom: 12px; }
+  h2 { font-size: 26px; line-height: 1.25; font-weight: 700; margin-bottom: 8px; }
+  section { margin-top: 56px; }
+  section > p { color: var(--muted); max-width: 62ch; }
+
+  .status {
+    margin-top: 32px;
+    display: flex; gap: 20px; align-items: center;
+    padding: 24px;
+    border: 2px solid var(--safe);
+    border-radius: 14px;
+  }
+  .status.insecure { border-color: var(--danger); }
+  .lock { width: 48px; height: 48px; flex: none; color: var(--safe); }
+  .status.insecure .lock { color: var(--danger); }
+  .status strong { display: block; font-size: 20px; }
+  .status span { color: var(--muted); }
+  .status code { font-family: "IBM Plex Mono", Consolas, monospace; font-size: 15px; }
+
+  .hint { margin-top: 12px; font-size: 15px; color: var(--muted); }
+
+  ol.steps { list-style: none; margin-top: 24px; display: grid; gap: 10px; }
+  ol.steps li {
+    display: grid; grid-template-columns: 40px 1fr; gap: 16px; align-items: start;
+    padding: 16px 18px;
+    background: var(--panel);
+    border-radius: 10px;
+    opacity: .45;
+    transition: opacity .3s;
+  }
+  ol.steps li.on { opacity: 1; }
+  ol.steps .n {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: var(--ink); color: var(--paper);
+    font-weight: 700; font-size: 15px;
+  }
+  ol.steps li.on .n { background: var(--safe); }
+  ol.steps b { display: block; }
+  ol.steps small { color: var(--muted); font-size: 15px; }
+
+  .actions { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: 2px solid var(--ink);
+    background: var(--ink); color: var(--paper);
+    cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--ink); }
+  button:focus-visible { outline: 3px solid var(--safe); outline-offset: 2px; }
+
+  .term {
+    margin-top: 24px;
+    background: var(--term-bg);
+    color: var(--term-ink);
+    border-radius: 12px;
+    padding: 20px 22px;
+    font-family: "IBM Plex Mono", Consolas, monospace;
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 260px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .term .c { color: var(--term-dim); }
+  .term .ok { color: var(--term-ok); }
+  .term .p { color: var(--term-ok); }
+
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
+
+  @media (max-width: 560px) {
+    h1 { font-size: 32px; }
+    .status { flex-direction: column; align-items: flex-start; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    ol.steps li { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Esta página llegó a tu navegador con SSL y se publicó con SSH</h1>
+    <p>Aplicación de demostración · Ingeniería de Sistemas, UFPS Cúcuta · Javier</p>
+  </header>
+
+  <div class="status" id="status" role="status">
+    <svg class="lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      <rect x="4" y="10" width="16" height="11" rx="2"/>
+      <path id="shackle" d="M8 10V7a4 4 0 0 1 8 0v3"/>
+    </svg>
+    <div>
+      <strong id="status-title">Comprobando la conexión…</strong>
+      <span id="status-text"></span>
+    </div>
+  </div>
+  <p class="hint">Haz clic en el candado de la barra de direcciones y abre el certificado: ahí ves quién lo emitió y hasta cuándo es válido.</p>
+
+  <section aria-labelledby="ssl-title">
+    <h2 id="ssl-title">Cómo se protegió esta conexión (SSL)</h2>
+    <p>Antes de mostrar esta página, tu navegador y el servidor hicieron un saludo para acordar cómo cifrar los datos. Recorre los pasos:</p>
+    <ol class="steps" id="steps">
+      <li><span class="n">1</span><div><b>El navegador saluda</b><small>Envía las versiones y cifrados que soporta.</small></div></li>
+      <li><span class="n">2</span><div><b>El servidor envía su certificado SSL</b><small>Incluye su llave pública y la firma de una autoridad certificadora.</small></div></li>
+      <li><span class="n">3</span><div><b>El navegador verifica el certificado</b><small>Comprueba que la firma sea de una autoridad en la que confía y que no esté vencido.</small></div></li>
+      <li><span class="n">4</span><div><b>Ambos acuerdan una clave de sesión</b><small>Desde aquí todo lo que viaja entre los dos va cifrado.</small></div></li>
+    </ol>
+    <div class="actions">
+      <button id="next">Siguiente paso</button>
+      <button class="ghost" id="reset">Reiniciar</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="ssh-title">
+    <h2 id="ssh-title">Cómo se publicó esta página (SSH)</h2>
+    <p>El código de esta página se subió a GitHub por SSH: GitHub reconoció al autor por su llave privada, sin contraseña, y los archivos viajaron cifrados por TCP, puerto 22. Estos son los comandos que se usaron:</p>
+    <div class="term" id="term" aria-live="polite"></div>
+    <div class="actions">
+      <button id="play">Reproducir comandos</button>
+    </div>
+  </section>
+
+  <footer>Publicado con GitHub Pages. El servidor de GitHub sirve esta página por HTTPS con su propio certificado.</footer>
+</main>
+
+<script>
+  // Estado de la conexión
+  (function () {
+    var secure = location.protocol === 'https:';
+    var box = document.getElementById('status');
+    var title = document.getElementById('status-title');
+    var text = document.getElementById('status-text');
+    if (secure) {
+      title.textContent = 'Conexión cifrada';
+      text.innerHTML = 'Esta página se cargó con <code>https://</code> desde <code>' + location.host + '</code>. El tráfico viaja protegido por SSL/TLS.';
+    } else {
+      box.classList.add('insecure');
+      document.getElementById('shackle').setAttribute('d', 'M8 10V7a4 4 0 0 1 7.5-2');
+      title.textContent = 'Conexión sin cifrar';
+      text.innerHTML = 'Esta página se abrió con <code>' + (location.protocol === 'file:' ? 'file://' : 'http://') + '</code>. Publícala en GitHub Pages para verla con SSL.';
+    }
+  })();
+
+  // Pasos del handshake
+  var items = document.querySelectorAll('#steps li');
+  var step = 0;
+  document.getElementById('next').addEventListener('click', function () {
+    if (step < items.length) { items[step].classList.add('on'); step++; }
+    if (step === items.length) this.textContent = 'Conexión establecida';
+  });
+  document.getElementById('reset').addEventListener('click', function () {
+    items.forEach(function (li) { li.classList.remove('on'); });
+    step = 0;
+    document.getElementById('next').textContent = 'Siguiente paso';
+  });
+
+  // Terminal SSH
+  var user = 'JavierGuerrero99';
+  var lines = [
+    ['c', '# 1. Crear el par de llaves'],
+    ['p', '$ ssh-keygen -t ed25519'],
+    ['', 'Your public key has been saved in ~/.ssh/id_ed25519.pub'],
+    ['c', '# 2. Comprobar que GitHub reconoce la llave'],
+    ['p', '$ ssh -T git@github.com'],
+    ['ok', 'Hi ' + user + '! You\u2019ve successfully authenticated.'],
+    ['c', '# 3. Subir la página por SSH'],
+    ['p', '$ git remote -v'],
+    ['', 'origin  git@github.com:' + user + '/demo-ssh-ssl.git (push)'],
+    ['p', '$ git push origin main'],
+    ['ok', 'To github.com:' + user + '/demo-ssh-ssl.git  main -> main']
+  ];
+  var term = document.getElementById('term');
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var timer = null;
+  function render(n) {
+    term.innerHTML = '';
+    lines.slice(0, n).forEach(function (l) {
+      var s = document.createElement('div');
+      if (l[0]) s.className = l[0];
+      s.textContent = l[1];
+      term.appendChild(s);
+    });
+  }
+  document.getElementById('play').addEventListener('click', function () {
+    clearInterval(timer);
+    if (reduce) { render(lines.length); return; }
+    var i = 0;
+    render(0);
+    timer = setInterval(function () {
+      i++; render(i);
+      if (i >= lines.length) clearInterval(timer);
+    }, 550);
+  });
+</script>
+</body>
+</html>
