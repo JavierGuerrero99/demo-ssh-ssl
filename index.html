@@ -71,7 +71,7 @@
     padding: 16px 18px;
     background: var(--panel);
     border-radius: 10px;
-    opacity: .45;
+    opacity: .6;
     transition: opacity .3s;
   }
   ol.steps li.on { opacity: 1; }
@@ -114,6 +114,13 @@
   .term .ok { color: var(--term-ok); }
   .term .p { color: var(--term-ok); }
 
+  .table-wrap { margin-top: 24px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  thead th { font-size: 16px; }
+  tbody th { font-weight: 600; width: 30%; }
+  td code { font-family: "IBM Plex Mono", Consolas, monospace; font-size: 14px; }
+
   footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 15px; }
 
   @media (max-width: 560px) {
@@ -145,13 +152,13 @@
   <p class="hint">Haz clic en el candado de la barra de direcciones y abre el certificado: ahí ves quién lo emitió y hasta cuándo es válido.</p>
 
   <section aria-labelledby="ssl-title">
-    <h2 id="ssl-title">Cómo se protegió esta conexión (SSL)</h2>
-    <p>Antes de mostrar esta página, tu navegador y el servidor hicieron un saludo para acordar cómo cifrar los datos. Recorre los pasos:</p>
+    <h2 id="ssl-title">Cómo se protegió esta conexión (SSL/TLS)</h2>
+    <p>SSL es el nombre antiguo del protocolo; hoy se usa su sucesor, TLS (versión 1.3), aunque se le sigue llamando SSL. Antes de mostrar esta página, tu navegador y el servidor hicieron un saludo (handshake) sobre TCP, puerto 443. Recorre los pasos:</p>
     <ol class="steps" id="steps">
-      <li><span class="n">1</span><div><b>El navegador saluda</b><small>Envía las versiones y cifrados que soporta.</small></div></li>
-      <li><span class="n">2</span><div><b>El servidor envía su certificado SSL</b><small>Incluye su llave pública y la firma de una autoridad certificadora.</small></div></li>
-      <li><span class="n">3</span><div><b>El navegador verifica el certificado</b><small>Comprueba que la firma sea de una autoridad en la que confía y que no esté vencido.</small></div></li>
-      <li><span class="n">4</span><div><b>Ambos acuerdan una clave de sesión</b><small>Desde aquí todo lo que viaja entre los dos va cifrado.</small></div></li>
+      <li><span class="n">1</span><div><b>El navegador saluda (ClientHello)</b><small>Envía las versiones y cifrados que soporta, y su mitad del intercambio de claves Diffie-Hellman.</small></div></li>
+      <li><span class="n">2</span><div><b>El servidor responde y ambos calculan la clave de sesión (ServerHello)</b><small>Elige el cifrado y envía su mitad del intercambio. Con las dos mitades, cada lado calcula la misma clave sin que esta viaje por la red. Desde aquí todo va cifrado.</small></div></li>
+      <li><span class="n">3</span><div><b>El servidor envía su certificado y demuestra que es suyo</b><small>El certificado es público: cualquiera podría copiarlo. Por eso el servidor además firma el saludo con su llave privada, y eso solo lo puede hacer el dueño real del certificado.</small></div></li>
+      <li><span class="n">4</span><div><b>El navegador verifica y empieza el HTTP cifrado</b><small>Comprueba que el certificado lo firmó una autoridad en la que confía, que es para este dominio, que no está vencido y que la firma del paso 3 es válida.</small></div></li>
     </ol>
     <div class="actions">
       <button id="next">Siguiente paso</button>
@@ -161,10 +168,27 @@
 
   <section aria-labelledby="ssh-title">
     <h2 id="ssh-title">Cómo se publicó esta página (SSH)</h2>
-    <p>El código de esta página se subió a GitHub por SSH: GitHub reconoció al autor por su llave privada, sin contraseña, y los archivos viajaron cifrados por TCP, puerto 22. Estos son los comandos que se usaron:</p>
+    <p>El código de esta página se subió a GitHub por SSH, sin contraseña. GitHub tiene registrada la llave pública del autor; la llave privada nunca sale de su computador, solo firma un reto que GitHub comprueba con la llave pública. Los archivos viajaron cifrados por TCP, puerto 22. Estos son los comandos que se usaron:</p>
     <div class="term" id="term" aria-live="polite"></div>
     <div class="actions">
       <button id="play">Reproducir comandos</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="cmp-title">
+    <h2 id="cmp-title">SSH y SSL/TLS, lado a lado</h2>
+    <p>Los dos cifran el tráfico con criptografía de llave pública, pero resuelven problemas distintos:</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col"></th><th scope="col">SSH</th><th scope="col">SSL/TLS</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Para qué</th><td>Acceso remoto y transferencia de archivos (aquí, <code>git push</code>)</td><td>Proteger otros protocolos, como HTTP → HTTPS</td></tr>
+          <tr><th scope="row">Puerto típico</th><td>TCP 22</td><td>TCP 443 (HTTPS)</td></tr>
+          <tr><th scope="row">Quién demuestra su identidad</th><td>El servidor y también el usuario, con su llave</td><td>Normalmente solo el servidor</td></tr>
+          <tr><th scope="row">Cómo se confía en el servidor</th><td>Huella guardada en <code>known_hosts</code> la primera vez que te conectas</td><td>Certificado firmado por una autoridad certificadora</td></tr>
+          <tr><th scope="row">En esta demo</th><td>Subir la página a GitHub</td><td>Entregarte la página en el navegador</td></tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -208,10 +232,13 @@
     ['c', '# 1. Crear el par de llaves'],
     ['p', '$ ssh-keygen -t ed25519'],
     ['', 'Your public key has been saved in ~/.ssh/id_ed25519.pub'],
-    ['c', '# 2. Comprobar que GitHub reconoce la llave'],
+    ['c', '# 2. Registrar la llave pública en GitHub (Settings > SSH and GPG keys)'],
+    ['p', '$ cat ~/.ssh/id_ed25519.pub'],
+    ['', 'ssh-ed25519 AAAAC3Nz...  (se copia y se pega en GitHub)'],
+    ['c', '# 3. Comprobar que GitHub reconoce la llave'],
     ['p', '$ ssh -T git@github.com'],
     ['ok', 'Hi ' + user + '! You\u2019ve successfully authenticated.'],
-    ['c', '# 3. Subir la página por SSH'],
+    ['c', '# 4. Subir la página por SSH'],
     ['p', '$ git remote -v'],
     ['', 'origin  git@github.com:' + user + '/demo-ssh-ssl.git (push)'],
     ['p', '$ git push origin main'],
