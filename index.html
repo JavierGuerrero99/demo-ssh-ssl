@@ -21,6 +21,7 @@
     --term-dim: #8FA3C0;
     --term-ok: #5FD3C9;
     --term-note: #F2C66D;
+    --term-bad: #FF8A80;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -116,6 +117,19 @@
   .term .p { color: var(--term-ok); }
 
   .term .note { color: var(--term-note); }
+  .term .bad { color: var(--term-bad); }
+
+  h3 { font-size: 20px; line-height: 1.3; margin-top: 40px; margin-bottom: 8px; }
+  ol.versions { list-style: none; margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px; }
+  ol.versions li { padding: 12px; border: 2px solid var(--danger); border-radius: 10px; background: var(--panel); }
+  ol.versions li.yes { border-color: var(--safe); }
+  ol.versions li.now { background: var(--safe); color: var(--paper); }
+  ol.versions b { display: block; font-size: 16px; }
+  ol.versions small { display: block; font-size: 13px; color: var(--muted); }
+  ol.versions li.now small { color: inherit; }
+  ol.versions .st { display: block; margin-top: 6px; font-size: 13px; font-weight: 700; color: var(--danger); }
+  ol.versions li.yes .st { color: var(--safe); }
+  ol.versions li.now .st { color: inherit; }
   .sub { margin-top: 32px; }
 
   .hs { margin-top: 24px; padding: 20px; background: var(--panel); border-radius: 12px; }
@@ -216,6 +230,22 @@
     <div class="term" id="term-ssl" aria-live="polite"></div>
     <div class="actions">
       <button id="play-ssl">Reproducir comandos</button>
+    </div>
+
+    <h3>¿Y por qué dice TLS y no SSL?</h3>
+    <p>Porque SSL ya no se usa: sus versiones tenían fallas graves (como el ataque POODLE contra SSL 3.0) y se prohibieron oficialmente (RFC 6176 y RFC 7568). TLS es la continuación del mismo protocolo; por costumbre se le sigue diciendo "SSL", como en "certificado SSL". Así responde hoy el servidor de esta página a cada versión:</p>
+    <ol class="versions">
+      <li><b>SSL 2.0</b><small>1995</small><span class="st">Prohibido</span></li>
+      <li><b>SSL 3.0</b><small>1996</small><span class="st">Prohibido</span></li>
+      <li><b>TLS 1.0</b><small>1999</small><span class="st">Rechazado</span></li>
+      <li><b>TLS 1.1</b><small>2006</small><span class="st">Rechazado</span></li>
+      <li class="yes"><b>TLS 1.2</b><small>2008</small><span class="st">Aceptado</span></li>
+      <li class="yes now"><b>TLS 1.3</b><small>2018</small><span class="st">El que usas ahora</span></li>
+    </ol>
+    <p class="sub">La prueba en la terminal: intentamos conectarnos con versiones viejas (salida real, resumida):</p>
+    <div class="term" id="term-old" aria-live="polite"></div>
+    <div class="actions">
+      <button id="play-old">Reproducir comandos</button>
     </div>
   </section>
 
@@ -331,6 +361,23 @@
     ['', 'notAfter=Dec 29 23:44:45 2026 GMT']
   ];
 
+  // Terminal de versiones viejas (salida real de openssl, resumida)
+  var oldLines = [
+    ['c', '# ¿Y si pido SSL 3.0?'],
+    ['p', '$ openssl s_client -connect ' + host + ':443 -ssl3'],
+    ['bad', 's_client: Unknown option: -ssl3', 'OpenSSL ya ni lo trae'],
+    ['c', '# ¿Y TLS 1.0, el sucesor directo de SSL 3.0?'],
+    ['p', '$ openssl s_client -connect ' + host + ':443 -tls1 -cipher "DEFAULT:@SECLEVEL=0"'],
+    ['bad', 'error: tlsv1 alert protocol version (SSL alert number 70)', 'GitHub lo rechaza'],
+    ['c', '# ¿Y TLS 1.1?'],
+    ['p', '$ openssl s_client -connect ' + host + ':443 -tls1_1 -cipher "DEFAULT:@SECLEVEL=0"'],
+    ['bad', 'error: tlsv1 alert protocol version (SSL alert number 70)', 'GitHub lo rechaza'],
+    ['c', '# Sin forzar versión, ambos eligen la mejor que tengan en común'],
+    ['p', '$ openssl s_client -connect ' + host + ':443 -brief'],
+    ['', 'CONNECTION ESTABLISHED'],
+    ['ok', 'Protocol version: TLSv1.3', 'aceptado']
+  ];
+
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   function makeTerm(termId, buttonId, lines, ms) {
     var term = document.getElementById(termId);
@@ -363,6 +410,7 @@
   }
   makeTerm('term', 'play', lines, 550);
   makeTerm('term-ssl', 'play-ssl', sslLines, 350);
+  makeTerm('term-old', 'play-old', oldLines, 450);
 </script>
 </body>
 </html>
