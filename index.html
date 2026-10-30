@@ -20,6 +20,7 @@
     --term-ink: #E6ECF5;
     --term-dim: #8FA3C0;
     --term-ok: #5FD3C9;
+    --term-note: #F2C66D;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -114,6 +115,35 @@
   .term .ok { color: var(--term-ok); }
   .term .p { color: var(--term-ok); }
 
+  .term .note { color: var(--term-note); }
+  .sub { margin-top: 32px; }
+
+  .hs { margin-top: 24px; padding: 20px; background: var(--panel); border-radius: 12px; }
+  .hs-actors { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; font-size: 15px; }
+  .hs-actors small { display: block; font-weight: 400; color: var(--muted); font-family: "IBM Plex Mono", Consolas, monospace; font-size: 13px; }
+  .hs-actors span:last-child { text-align: right; }
+  .hs-body { position: relative; margin-top: 12px; padding: 4px 0; min-height: 80px; }
+  .hs-body::before, .hs-body::after { content: ""; position: absolute; top: 0; bottom: 0; width: 2px; background: var(--muted); opacity: .5; }
+  .hs-body::before { left: 0; }
+  .hs-body::after { right: 0; }
+  .rev { opacity: 0; visibility: hidden; transform: translateY(6px); transition: opacity .35s, transform .35s, visibility .35s; }
+  .rev.show { opacity: 1; visibility: visible; transform: none; }
+  .msg { --arrow: var(--ink); padding: 10px 16px 14px; text-align: center; }
+  .msg.enc { --arrow: var(--safe); }
+  .msg b { display: block; font-size: 15px; }
+  .msg small { display: block; color: var(--muted); font-size: 14px; line-height: 1.4; }
+  .msg .arrow { position: relative; height: 2px; background: var(--arrow); margin: 8px -16px 0; }
+  .msg .arrow::before, .msg .arrow::after { content: ""; position: absolute; top: -5px; width: 0; height: 0; border-top: 6px solid transparent; border-bottom: 6px solid transparent; }
+  .to-server .arrow::after, .both .arrow::after { right: 0; border-left: 10px solid var(--arrow); }
+  .to-client .arrow::before, .both .arrow::before { left: 0; border-right: 10px solid var(--arrow); }
+  .tag { display: inline-block; margin-left: 6px; padding: 0 8px; border: 1px solid var(--safe); border-radius: 999px; color: var(--safe); font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; vertical-align: 2px; }
+  .hs-key { margin: 6px 16px; padding: 8px 12px; border: 1px dashed var(--safe); border-radius: 8px; background: var(--paper); color: var(--safe); font-size: 14px; font-weight: 600; text-align: center; }
+  .chain { margin-top: 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 14px; }
+  .chain .lbl { width: 100%; color: var(--muted); }
+  .chain .c { padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--paper); font-family: "IBM Plex Mono", Consolas, monospace; font-size: 13px; }
+  .chain .c.root { border-color: var(--safe); }
+  .chain i { font-style: normal; color: var(--muted); }
+
   .table-wrap { margin-top: 24px; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 15px; }
   th, td { text-align: left; vertical-align: top; padding: 12px 14px; border-bottom: 1px solid var(--line); }
@@ -126,9 +156,12 @@
   @media (max-width: 560px) {
     h1 { font-size: 32px; }
     .status { flex-direction: column; align-items: flex-start; }
+    .hs { padding: 16px 12px; }
+    .hs-actors span { flex: 1; }
+    .hs-actors small { overflow-wrap: anywhere; }
   }
   @media (prefers-reduced-motion: reduce) {
-    ol.steps li { transition: none; }
+    ol.steps li, .rev { transition: none; }
   }
 </style>
 </head>
@@ -154,15 +187,35 @@
   <section aria-labelledby="ssl-title">
     <h2 id="ssl-title">Cómo se protegió esta conexión (SSL/TLS)</h2>
     <p>SSL es el nombre antiguo del protocolo; hoy se usa su sucesor, TLS (versión 1.3), aunque se le sigue llamando SSL. Antes de mostrar esta página, tu navegador y el servidor hicieron un saludo (handshake) sobre TCP, puerto 443. Recorre los pasos:</p>
+    <div class="hs" id="hs">
+      <div class="hs-actors"><span>Tu navegador<small>cliente</small></span><span>Servidor de GitHub<small>javierguerrero99.github.io:443</small></span></div>
+      <div class="hs-body">
+        <div class="msg rev to-server" data-step="1"><b>ClientHello</b><small>Versiones y cifrados que soporta + su mitad de la clave (X25519)</small><div class="arrow"></div></div>
+        <div class="msg rev to-client" data-step="2"><b>ServerHello</b><small>Elige TLS 1.3 y TLS_AES_128_GCM_SHA256 + su mitad de la clave (X25519)</small><div class="arrow"></div></div>
+        <div class="hs-key rev" data-step="2">Ambos calculan la misma clave de sesión. Desde aquí todo va cifrado.</div>
+        <div class="msg rev to-client enc" data-step="3"><b>Certificado *.github.io + firma<span class="tag">cifrado</span></b><small>La firma (RSA-PSS) prueba que el servidor tiene la llave privada del certificado</small><div class="arrow"></div></div>
+        <div class="msg rev to-server enc" data-step="4"><b>Finished<span class="tag">cifrado</span></b><small>El navegador verificó la cadena de confianza y confirma el saludo</small><div class="arrow"></div></div>
+        <div class="msg rev both enc" data-step="4"><b>GET /demo-ssh-ssl/<span class="tag">cifrado</span></b><small>Recién ahora viaja esta página, ya protegida</small><div class="arrow"></div></div>
+      </div>
+      <div class="chain rev" data-step="4">
+        <span class="lbl">Cadena de confianza que verificó tu navegador (cada uno firma al siguiente; la raíz ya viene instalada en tu sistema):</span>
+        <span class="c root">ISRG Root X1</span><i>→</i><span class="c">ISRG Root YR</span><i>→</i><span class="c">Let's Encrypt YR1</span><i>→</i><span class="c">*.github.io</span>
+      </div>
+    </div>
+    <div class="actions">
+      <button id="next">Siguiente paso</button>
+      <button class="ghost" id="reset">Reiniciar</button>
+    </div>
     <ol class="steps" id="steps">
       <li><span class="n">1</span><div><b>El navegador saluda (ClientHello)</b><small>Envía las versiones y cifrados que soporta, y su mitad del intercambio de claves Diffie-Hellman.</small></div></li>
       <li><span class="n">2</span><div><b>El servidor responde y ambos calculan la clave de sesión (ServerHello)</b><small>Elige el cifrado y envía su mitad del intercambio. Con las dos mitades, cada lado calcula la misma clave sin que esta viaje por la red. Desde aquí todo va cifrado.</small></div></li>
       <li><span class="n">3</span><div><b>El servidor envía su certificado y demuestra que es suyo</b><small>El certificado es público: cualquiera podría copiarlo. Por eso el servidor además firma el saludo con su llave privada, y eso solo lo puede hacer el dueño real del certificado.</small></div></li>
       <li><span class="n">4</span><div><b>El navegador verifica y empieza el HTTP cifrado</b><small>Comprueba que el certificado lo firmó una autoridad en la que confía, que es para este dominio, que no está vencido y que la firma del paso 3 es válida.</small></div></li>
     </ol>
+    <p class="sub">Lo mismo, visto desde la terminal con OpenSSL. Es la salida real contra el servidor de esta página, capturada el 29 de octubre de 2026:</p>
+    <div class="term" id="term-ssl" aria-live="polite"></div>
     <div class="actions">
-      <button id="next">Siguiente paso</button>
-      <button class="ghost" id="reset">Reiniciar</button>
+      <button id="play-ssl">Reproducir comandos</button>
     </div>
   </section>
 
@@ -215,15 +268,21 @@
 
   // Pasos del handshake
   var items = document.querySelectorAll('#steps li');
+  var parts = document.querySelectorAll('#hs .rev');
   var step = 0;
+  function syncDiagram() {
+    parts.forEach(function (el) { el.classList.toggle('show', Number(el.dataset.step) <= step); });
+  }
   document.getElementById('next').addEventListener('click', function () {
     if (step < items.length) { items[step].classList.add('on'); step++; }
     if (step === items.length) this.textContent = 'Conexión establecida';
+    syncDiagram();
   });
   document.getElementById('reset').addEventListener('click', function () {
     items.forEach(function (li) { li.classList.remove('on'); });
     step = 0;
     document.getElementById('next').textContent = 'Siguiente paso';
+    syncDiagram();
   });
 
   // Terminal SSH
@@ -244,28 +303,66 @@
     ['p', '$ git push origin main'],
     ['ok', 'To github.com:' + user + '/demo-ssh-ssl.git  main -> main']
   ];
-  var term = document.getElementById('term');
+
+  // Terminal SSL (salida real de openssl; el tercer valor marca el paso del diagrama)
+  var host = 'javierguerrero99.github.io';
+  var sslLines = [
+    ['c', '# 1. Abrir una conexión TLS con el servidor de esta página'],
+    ['p', '$ openssl s_client -connect ' + host + ':443 -brief'],
+    ['', 'CONNECTION ESTABLISHED'],
+    ['', 'Protocol version: TLSv1.3', 'paso 2'],
+    ['', 'Ciphersuite: TLS_AES_128_GCM_SHA256', 'paso 2'],
+    ['', 'Peer certificate: CN=*.github.io', 'paso 3'],
+    ['', 'Hash used: SHA256'],
+    ['', 'Signature type: RSA-PSS', 'paso 3'],
+    ['ok', 'Verification: OK', 'paso 4'],
+    ['', 'Server Temp Key: X25519, 253 bits', 'pasos 1 y 2'],
+    ['c', '# 2. Ver la cadena de confianza (s: dueño, i: quién lo firmó)'],
+    ['p', '$ openssl s_client -connect ' + host + ':443 -showcerts'],
+    ['', ' 0 s:CN=*.github.io'],
+    ['', '   i:C=US, O=Let\'s Encrypt, CN=YR1'],
+    ['', ' 1 s:C=US, O=Let\'s Encrypt, CN=YR1'],
+    ['', '   i:C=US, O=ISRG, CN=Root YR'],
+    ['', ' 2 s:C=US, O=ISRG, CN=Root YR'],
+    ['', '   i:C=US, O=Internet Security Research Group, CN=ISRG Root X1'],
+    ['c', '# 3. Ver hasta cuándo es válido el certificado'],
+    ['p', '$ openssl s_client -connect ' + host + ':443 | openssl x509 -noout -dates'],
+    ['', 'notBefore=Sep 30 23:44:46 2026 GMT'],
+    ['', 'notAfter=Dec 29 23:44:45 2026 GMT']
+  ];
+
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var timer = null;
-  function render(n) {
-    term.innerHTML = '';
-    lines.slice(0, n).forEach(function (l) {
-      var s = document.createElement('div');
-      if (l[0]) s.className = l[0];
-      s.textContent = l[1];
-      term.appendChild(s);
+  function makeTerm(termId, buttonId, lines, ms) {
+    var term = document.getElementById(termId);
+    var timer = null;
+    function render(n) {
+      term.innerHTML = '';
+      lines.slice(0, n).forEach(function (l) {
+        var s = document.createElement('div');
+        if (l[0]) s.className = l[0];
+        s.textContent = l[1];
+        if (l[2]) {
+          var note = document.createElement('span');
+          note.className = 'note';
+          note.textContent = '   ← ' + l[2];
+          s.appendChild(note);
+        }
+        term.appendChild(s);
+      });
+    }
+    document.getElementById(buttonId).addEventListener('click', function () {
+      clearInterval(timer);
+      if (reduce) { render(lines.length); return; }
+      var i = 0;
+      render(0);
+      timer = setInterval(function () {
+        i++; render(i);
+        if (i >= lines.length) clearInterval(timer);
+      }, ms);
     });
   }
-  document.getElementById('play').addEventListener('click', function () {
-    clearInterval(timer);
-    if (reduce) { render(lines.length); return; }
-    var i = 0;
-    render(0);
-    timer = setInterval(function () {
-      i++; render(i);
-      if (i >= lines.length) clearInterval(timer);
-    }, 550);
-  });
+  makeTerm('term', 'play', lines, 550);
+  makeTerm('term-ssl', 'play-ssl', sslLines, 350);
 </script>
 </body>
 </html>
